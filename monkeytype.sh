@@ -1,126 +1,179 @@
-
 #!/bin/bash
 
 generate_target() {
     local word_count=$1
     local min=$2
     local max=$3
-
     grep -E "^[a-z]{$min,$max}$" /usr/share/dict/words | sort -R | head -n "$word_count" | xargs
 }
 
-
-#color variables
+# Color variables
 red='\033[0;31m'
 green='\033[0;32m'
 yellow='\033[33m'
-nc='\033[0m' # no colour
+nc='\033[0m'
 nc_bold='\033[1m'
 green_bold='\033[1;32m'
 
-easy="success is not final, failure is not fatal: it is the courage to continue that counts."
-
 while true; do
-
     clear
     echo -e "${nc_bold}choose mode${nc}"
     echo "1) word based"
     echo "2) timer based"
-    echo -n "select: "
+    echo -n "select (1 or 2): "
     read mode_choice
 
-    clear
-    echo "select your difficulty"
-    echo "1) easy"
-    echo "2) medium"
-    echo "3) hard"
-    echo "choose (1, 2, or 3): "
-    read choice
-
-
-
-    if [[ "$choice" == "1" ]]; then
-        target=$(generate_target 10 2 6)
-        time_limit=20
-    elif [[ "$choice" == "2" ]]; then
-        target=$(generate_target 25 4 8)
-        time_limit=40
-    elif [[ "$choice" == "3" ]]; then
-        target=$(generate_target 40 6 12)
-        time_limit=60
-    else
-        target=$easy
+    if [[ "$mode_choice" != "1" && "$mode_choice" != "2" ]]; then
+        echo -e "${red}Invalid input! Please enter 1 or 2.${nc}"
+        sleep 1
+        continue
     fi
 
-    typing_test="typing test!"
+    while true; do
+        clear
+        echo "Select your difficulty:"
+        echo "1) easy"
+        echo "2) medium"
+        echo "3) hard"
+        echo -n "Choose (1, 2, or 3): "
+        read choice
 
-    upper_lim=60 #for word mode
+        if [[ "$choice" == "1" ]]; then
+            target=$(generate_target 10 2 6)
+            [[ "$mode_choice" == "2" ]] && time_limit=20
+            break
+        elif [[ "$choice" == "2" ]]; then
+            target=$(generate_target 25 4 8)
+            [[ "$mode_choice" == "2" ]] && time_limit=40
+            break
+        elif [[ "$choice" == "3" ]]; then
+            target=$(generate_target 40 6 12)
+            [[ "$mode_choice" == "2" ]] && time_limit=60
+            break
+        else
+            echo -e "${red}Invalid input! Please enter 1, 2, or 3.${nc}"
+            sleep 1
+        fi
+    done
 
     clear
-    echo -e "${nc_bold}${typing_test}${nc}"
+    echo -e "${nc_bold}typing test!${nc}"
     echo -e "${nc_bold}mode: $([[ "$mode_choice" == "1" ]] && echo "word based" || echo "timer based")${nc}"
-    echo -e "time limit: ${yellow}${time_limit} seconds${nc}"
-    echo "remember to click enter before reaching time limit!"
+    if [[ "$mode_choice" == "2" ]]; then
+        echo -e "time limit: ${yellow}${time_limit} seconds${nc}"
+    else
+        echo -e "time limit: ${yellow}60 seconds (upper limit)${nc}"
+    fi
     echo ""
     echo -e "${red}${target}${nc}"
     echo ""
     echo "press enter, then immediately start typing!"
-    read 
-    
+    read
+
+    #starting test
     start_time=$(date +%s)
+    user_input=""
+
+    old_stty=$(stty -g)
+    stty -echo -icanon min 0 time 0
 
     if [[ "$mode_choice" == "2" ]]; then
-        echo -e "${red}you have $time_limit seconds!${nc}"
+        echo -e "${green}Go! Hit enter when you're done.${nc}"
         echo -n "> "
-        read -t "$time_limit" user_input
+
+        while true; do
+            current_time=$(date +%s)
+            elapsed=$(( current_time - start_time ))
+            remaining=$(( time_limit - elapsed ))
+
+            echo -ne "\033[s\033[0;40H${red}TIME: ${remaining}s  ${nc}\033[u"
+
+            if (( remaining <= 0 )); then
+                echo -e "\n${red}!! time expired !!${nc}"
+                break
+            fi
+
+            char=$(dd bs=1 count=1 2>/dev/null)
+
+            if [[ "$char" == $'\r' ]] || [[ "$char" == $'\n' ]]; then
+                echo ""
+                break
+            elif [[ "$char" == $'\x7f' ]] || [[ "$char" == $'\x08' ]]; then
+                if [[ ${#user_input} -gt 0 ]]; then
+                    user_input="${user_input%?}"
+                    echo -ne "\b \b"
+                fi
+            elif [[ -n "$char" ]]; then
+                user_input+="$char"
+                echo -n "$char"
+            else
+                sleep 0.1
+            fi
+        done
+
     else
-        echo -e "${green}word mode(Max: ${upper_lim}s)!${nc}"
+        echo -e "${green}Go! Hit enter when you're done.${nc}"
         echo -n "> "
-        read -t "$upper_lim" user_input
+
+        while true; do
+            current_time=$(date +%s)
+            elapsed=$(( current_time - start_time ))
+
+            if (( elapsed >= 60 )); then
+                echo -e "\n${red}!! TIME EXPIRED (60s limit) !!${nc}"
+                break
+            fi
+
+            char=$(dd bs=1 count=1 2>/dev/null)
+
+            if [[ "$char" == $'\r' ]] || [[ "$char" == $'\n' ]]; then
+                echo ""
+                break
+            elif [[ "$char" == $'\x7f' ]] || [[ "$char" == $'\x08' ]]; then
+                if [[ ${#user_input} -gt 0 ]]; then
+                    user_input="${user_input%?}"
+                    echo -ne "\b \b"
+                fi
+            elif [[ -n "$char" ]]; then
+                user_input+="$char"
+                echo -n "$char"
+            else
+                sleep 0.1
+            fi
+        done
     fi
 
+    stty "$old_stty"
 
+    #stats
     end_time=$(date +%s)
-
-    # computing
     timetaken=$(( end_time - start_time ))
+    [[ $timetaken -lt 1 ]] && timetaken=1
 
-    if [[ -z "$user_input" ]]; then 
-        echo -e "\n${red}TIME UP!${nc}"
-        user_input=" " # avoid errors
-    fi
+    IFS=' ' read -ra target_words <<< "$target"
+    IFS=' ' read -ra user_words <<< "$user_input"
 
-    chars=${#user_input}
-
-    if [ $timetaken -lt 1 ]; then timetaken=1; fi
-
-    wpm=$(( (chars * 60) / (timetaken * 5) ))
-    # 5 chars per word is the standard for wpm calculations
-
-    matches=0
-    target_len=${#target}
-    user_len=${#user_input}
-    
-
-    for (( i=0; i<$target_len && i<$user_len; i++ )); do
-        if [[ "${target:$i:1}" == "${user_input:$i:1}" ]]; then
-            ((matches++))
-        fi
+    correct_words=0
+    for (( i=0; i<${#target_words[@]}; i++ )); do
+        [[ "${target_words[$i]}" == "${user_words[$i]}" ]] && ((correct_words++))
     done
-    
-    accuracy=$(( (matches * 100) / target_len ))
+
+    total_words=${#target_words[@]}
+    [[ $total_words -lt 1 ]] && total_words=1
+
+    accuracy=$(( (correct_words * 100) / total_words ))
+    wpm=$(( (correct_words * 60) / timetaken ))
 
     echo ""
-
     echo -e "${green_bold}final stats${nc}"
-    echo -e "${green}time taken: $timetaken seconds${nc}"
-    echo -e "${green}your speed: $wpm wpm${nc}"
-    echo -e "${green}accuracy: $accuracy%${nc}"
+    echo -e "${green}time taken:   $timetaken seconds${nc}"
+    echo -e "${green}your speed:   $wpm wpm${nc}"
+    echo -e "${green}accuracy:     $accuracy%${nc}"
     echo ""
 
-    echo "play again? (r = restart, q = quit): "
+    echo -n "play again? (r = restart, q = quit): "
     read play_again
     if [[ "$play_again" == "q" ]]; then
-        break
+        exit 0
     fi
 done
