@@ -39,13 +39,13 @@ while true; do
         read choice
 
         if [[ "$choice" == "1" ]]; then
-            target=$(generate_target 10 2 6)
+            target=$(generate_target 12 2 6)
             time_limit=25; break
         elif [[ "$choice" == "2" ]]; then
-            target=$(generate_target 25 4 8)
+            target=$(generate_target 28 4 8)
             time_limit=45; break
         elif [[ "$choice" == "3" ]]; then
-            target=$(generate_target 40 6 12)
+            target=$(generate_target 43 6 12)
             time_limit=80; break
         else
             echo -e "${red}Invalid input! Please enter 1, 2, or 3.${nc}"
@@ -93,12 +93,14 @@ while true; do
             done
         ) &
         timer_pid=$!
+        disown "$timer_pid"
     else
         (
             sleep 60
             echo "expired" > "$timer_expired_file"
         ) &
         timer_pid=$!
+        disown "$timer_pid"
     fi
 
     while true; do
@@ -154,7 +156,7 @@ while true; do
 
     # results
     echo ""
-    echo -e "${green_bold}--- FINAL STATS ---${nc}"
+    echo -e "${green_bold}results${nc}"
     echo -e "Time Taken:   $timetaken seconds"
     echo -e "Your Speed:   ${nc_bold}$wpm WPM${nc}"
     echo -e "Accuracy:     ${nc_bold}$accuracy%${nc}"
