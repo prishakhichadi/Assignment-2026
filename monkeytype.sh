@@ -1,39 +1,58 @@
 
 #!/bin/bash
 
-easy="the sun sets behind the tall mountains."
-medium="success is not final, failure is not fatal: it is the courage to continue that counts."
-hard="the biological brain is a complex system of neurons, but the silicon brain we build with code is a reflection of our own logic."
+generate_target() {
+    local word_count=$1
+    local min=$2
+    local max=$3
+
+    grep -E "^[a-z]{$min,$max}$" /usr/share/dict/words | sort -R | head -n "$word_count" | xargs
+}
+
+
+#color variables
+red='\033[0;31m'
+green='\033[0;32m'
+yellow='\033[33m'
+blue='\033[0;34m'
+nc='\033[0m' # no colour
+nc_bold='\033[1m'
+green_bold='\033[1;32m'
+
+easy="success is not final, failure is not fatal: it is the courage to continue that counts."
 
 while true; do
     clear
     echo "select your difficulty"
-    echo "1) easy"
-    echo "2) medium"
-    echo "3) hard"
+    echo "1) easy (10 words)"
+    echo "2) medium (25 words)"
+    echo "3) hard (40 words)"
     echo "choose (1, 2, or 3): "
     read choice
 
     if [[ "$choice" == "1" ]]; then
-        target=$easy
+        target=$(generate_target 10 2 6)
     elif [[ "$choice" == "2" ]]; then
-        target=$medium
+        target=$(generate_target 25 4 8)
     elif [[ "$choice" == "3" ]]; then
-        target=$hard
+        target=$(generate_target 40 6 12)
     else
         target=$easy
     fi
 
+    typing_test="TYPING TEST"
+
     clear
-    echo "typing test"
     echo ""
-    echo "$target"
+    echo -e "${nc_bold}${typing_test}${nc}"
+    echo ""
+    echo -e "${red}${target}${nc}"
     echo ""
     echo "press ENTER, then immediately start typing!"
     read 
     
     start_time=$(date +%s)
-    echo "> "
+    echo -n "> "
     read user_input
     end_time=$(date +%s)
 
@@ -58,10 +77,12 @@ while true; do
     
     accuracy=$(( (matches * 100) / target_len ))
 
-    echo -e "\nfinal stats"
-    echo "time taken: $timetaken seconds"
-    echo "your speed: $wpm wpm"
-    echo "accuracy:   $accuracy%"
+    echo ""
+
+    echo -e "${green_bold}final stats${nc}"
+    echo -e "${green}time taken: $timetaken seconds${nc}"
+    echo -e "${green}your speed: $wpm wpm${nc}"
+    echo -e "${green}accuracy: $accuracy%${nc}"
     echo ""
 
     echo "play again? (r = restart, q = quit): "
