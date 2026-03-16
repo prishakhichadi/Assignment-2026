@@ -4,7 +4,14 @@ generate_target() {
     local word_count=$1
     local min=$2
     local max=$3
-    grep -E "^[a-z]{$min,$max}$" /usr/share/dict/words | sort -R | head -n "$word_count" | xargs
+    
+    local filtered_list=$(grep -E "^[a-z]{$min,$max}$" /usr/share/dict/words)
+
+    if command -v shuf >/dev/null 2>&1; then
+        echo "$filtered_list" | shuf -n "$word_count" | xargs
+    else
+        echo "$filtered_list" | sort -R | head -n "$word_count" | xargs
+    fi
 }
 
 red='\033[0;31m'
@@ -84,7 +91,11 @@ while true; do
             while true; do
                 now=$(date +%s)
                 remaining=$(( time_limit - (now - start_time) ))
-                echo -ne "\033[s\033[0;40H${red}TIME: ${remaining}s  ${nc}\033[u"
+                #terminal width
+                cols=$(tput cols)
+                t_col=$(( cols - 12 )) 
+                echo -ne "\033[s\033[0;${t_col}H${red}TIME: ${remaining}s  ${nc}\033[u"
+                
                 if (( remaining <= 0 )); then
                     echo "expired" > "$timer_expired_file"
                     break
